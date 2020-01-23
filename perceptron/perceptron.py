@@ -35,10 +35,15 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
             self: this allows this to be chained, e.g. model.fit(X,y).predict(X_test)
 
         """
-        self.X = X;
-        self.y = y;
-        self.initial_weights = self.initialize_weights() if not initial_weights else initial_weights
-
+        rows,cols = X.shape
+        self.X = np.append(X, np.ones([rows,1]), axis=1)
+        self.y = y
+        self.c = .2
+        w_rows,w_cols = initial_weights.shape
+        self.weights = self.initialize_weights() if not initial_weights else initial_weights
+        if (w_cols < cols+1) {
+            print("Improperly sized weights. Using defaults")
+            self.weights = self.initialize_weights()
         return self
 
     def predict(self, X):
@@ -51,7 +56,10 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
             array, shape (n_samples,)
                 Predicted target values per element in X.
         """
-        pass
+        rows = X.shape[0]
+        y = [[]];
+        for row in X:
+            
 
     def initialize_weights(self):
         """ Initialize weights for perceptron. Don't forget the bias!
@@ -59,8 +67,8 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
         Returns:
 
         """
-
-        return [0]
+        rows,cols = self.X.shape
+        return np.zeros(cols)
 
     def score(self, X, y):
         """ Return accuracy of model on a given dataset. Must implement own score function.
@@ -81,7 +89,36 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
             It might be easier to concatenate X & y and shuffle a single 2D array, rather than
              shuffling X and y exactly the same way, independently.
         """
-        pass
+        things = np.append(X, y, axis=1)
+        np.random.shuffle(things)
+        np.X = things[:,:-1]
+        np.y = things[:,-1:]
+
+    """
+        runs through one epoch and updates the weights accordingly
+
+    """
+    def _train_one_epoch(self):
+        changed=0
+        for row, true_val in zip(self.X, self.y):
+            predict,net = _predict_one_row(self, row)
+            if (predict!=true_val):
+                changed=1
+                _update_weights(self,true_val-predict, row)
+        return changed
+
+
+    def _predict_one_row(self, row):
+        threshold = 0;
+        net = sum(row*self.weights)
+        if (net > threshold): 
+            return 1
+        else
+            return 0
+
+    def _update_weights(self, changeDirection, row):
+        delta = self.c*changeDirection
+        self.weights+=row*delta
 
     ### Not required by sk-learn but required by us for grading. Returns the weights.
     def get_weights(self):
