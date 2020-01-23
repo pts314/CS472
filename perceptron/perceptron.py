@@ -35,6 +35,8 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
             self: this allows this to be chained, e.g. model.fit(X,y).predict(X_test)
 
         """
+        self.X = X;
+        self.y = y;
         self.initial_weights = self.initialize_weights() if not initial_weights else initial_weights
 
         return self
@@ -83,4 +85,4 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
 
     ### Not required by sk-learn but required by us for grading. Returns the weights.
     def get_weights(self):
-        pass
+        return self.weights
