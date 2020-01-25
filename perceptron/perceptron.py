@@ -13,7 +13,7 @@ from sklearn.linear_model import Perceptron
 
 class PerceptronClassifier(BaseEstimator,ClassifierMixin):
 
-    def __init__(self, lr=.1, shuffle=True):
+    def __init__(self, lr=.1, shuffle=True, deterministic=10):
         """ Initialize class with chosen hyperparameters.
 
         Args:
@@ -22,6 +22,7 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
         """
         self.lr = lr
         self.shuffle = shuffle
+        self.deterministic = deterministic
 
     def fit(self, X, y, initial_weights=None):
         """ Fit the data; run the algorithm and adjust the weights to find a good solution
@@ -38,12 +39,18 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
         rows,cols = X.shape
         self.X = np.append(X, np.ones([rows,1]), axis=1)
         self.y = y
-        self.c = .2
-        w_rows,w_cols = initial_weights.shape
-        self.weights = self.initialize_weights() if not initial_weights else initial_weights
-        if (w_cols < cols+1) {
-            print("Improperly sized weights. Using defaults")
+        if initial_weights:
+            w_rows,w_cols = initial_weights.shape
+            if (w_cols < cols+1):
+                print("Improperly sized weights. Using defaults")
+                self.weights = self.initialize_weights()
+            else:
+                self.weights = initial_weights 
+        else:
             self.weights = self.initialize_weights()
+
+        for i in range(self.deterministic):
+            self._train_one_epoch()
         return self
 
     def predict(self, X):
@@ -57,10 +64,13 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
                 Predicted target values per element in X.
         """
         rows = X.shape[0]
-        y = [[]];
+        y = [];
         for row in X:
+            y.append(self._predict_one_row(row))
+        y = np.array(y)
+        return y[:, np.newaxis]
             
-
+            
     def initialize_weights(self):
         """ Initialize weights for perceptron. Don't forget the bias!
 
@@ -81,8 +91,16 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
             score : float
                 Mean accuracy of self.predict(X) wrt. y.
         """
-
-        return 0
+        rows = X.shape[0]
+        weightedX = np.append(X, np.ones([rows,1]), axis=1)
+        predicts = self.predict(weightedX)
+        correct = 0;
+        tot = 0;
+        for pre,true in zip(predicts,y):
+            tot +=1
+            if (pre==true):
+                correct += 1
+        return correct*1.0/tot
 
     def _shuffle_data(self, X, y):
         """ Shuffle the data! This _ prefix suggests that this method should only be called internally.
@@ -101,10 +119,11 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
     def _train_one_epoch(self):
         changed=0
         for row, true_val in zip(self.X, self.y):
-            predict,net = _predict_one_row(self, row)
+            predict = self._predict_one_row(row)
             if (predict!=true_val):
                 changed=1
-                _update_weights(self,true_val-predict, row)
+                delta=true_val-predict
+                self._update_weights(delta, row)
         return changed
 
 
@@ -113,11 +132,11 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
         net = sum(row*self.weights)
         if (net > threshold): 
             return 1
-        else
+        else:
             return 0
 
     def _update_weights(self, changeDirection, row):
-        delta = self.c*changeDirection
+        delta = self.lr*changeDirection
         self.weights+=row*delta
 
     ### Not required by sk-learn but required by us for grading. Returns the weights.
