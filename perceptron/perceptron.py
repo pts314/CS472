@@ -13,7 +13,7 @@ from sklearn.linear_model import Perceptron
 
 class PerceptronClassifier(BaseEstimator,ClassifierMixin):
 
-    def __init__(self, lr=.1, shuffle=True, deterministic=10):
+    def __init__(self, lr=.1, shuffle=True, deterministic=None):
         """ Initialize class with chosen hyperparameters.
 
         Args:
@@ -22,9 +22,11 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
         """
         self.lr = lr
         self.shuffle = shuffle
-        self.deterministic = deterministic
+        self.fixedIterations = None
+        if deterministic:
+            self.fixedIterations = deterministic
 
-    def fit(self, X, y, initial_weights=None):
+    def fit(self, X, y, initial_weights=None, quiet=False):
         """ Fit the data; run the algorithm and adjust the weights to find a good solution
 
         Args:
@@ -39,6 +41,8 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
         rows,cols = X.shape
         self.X = np.append(X, np.ones([rows,1]), axis=1)
         self.y = y
+        iter_number = 0
+        scores = []
         if initial_weights:
             w_rows,w_cols = initial_weights.shape
             if (w_cols < cols+1):
@@ -48,10 +52,38 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
                 self.weights = initial_weights 
         else:
             self.weights = self.initialize_weights()
+            
 
-        for i in range(self.deterministic):
-            self._train_one_epoch()
-        return self
+        if self.fixedIterations:
+            for i in range(self.fixedIterations):
+                self._train_one_epoch()
+
+        else:
+            dont_stop = True
+            iter_number = 0
+            best_iter = 0
+            scores = []
+            best_weights = self.get_weights()
+            max_flat_iter = 10
+            while dont_stop:
+                changed = self._train_one_epoch()
+                scores.append(self.score(X,y))
+                if scores[iter_number] > scores[best_iter]:
+                    best_iter = iter_number
+                    best_weights = self.get_weights().copy() # if you don't copy, it puts a reference to the object in, which will be changed
+                # optionally add an epsilon for if very small difference between best and this
+                changed_recently = (iter_number - best_iter) < max_flat_iter
+                
+                dont_stop = changed and changed_recently
+                if self.shuffle:
+                    self._shuffle_data(X,y)
+                iter_number +=1
+
+            self.weights = best_weights
+            if not quiet:
+                print(f"ran {iter_number} iterations")
+
+        return self, iter_number, scores
 
     def predict(self, X):
         """ Predict all classes for a dataset X
@@ -63,7 +95,6 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
             array, shape (n_samples,)
                 Predicted target values per element in X.
         """
-        rows = X.shape[0]
         y = [];
         for row in X:
             y.append(self._predict_one_row(row))
@@ -75,10 +106,31 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
         """ Initialize weights for perceptron. Don't forget the bias!
 
         Returns:
+            array of 0s of size cols
 
         """
         rows,cols = self.X.shape
         return np.zeros(cols)
+    
+    def split_training(X,y,testFraction=.3):
+        """ split up X,y into a training and test set.
+        
+        Returns:
+            X_train, y_train, X_test, y_train
+        """
+        rows = X.shape[0]
+        data = np.append(X, y, axis=1)
+        trainingSize = int(np.rint(rows*testFraction))
+        trainingSelections = np.random.choice(a=rows,size=trainingSize,replace=False)
+        testing = data[trainingSelections,:]
+        training = np.copy(data)
+        training = np.delete(training,trainingSelections,axis=0)
+        
+        X_train = training[:,:-1]
+        y_train = training[:,-1:]
+        X_test = testing[:,:-1]
+        y_test = testing[:,-1:]
+        return X_train, y_train, X_test, y_test
 
     def score(self, X, y):
         """ Return accuracy of model on a given dataset. Must implement own score function.
@@ -108,9 +160,10 @@ class PerceptronClassifier(BaseEstimator,ClassifierMixin):
              shuffling X and y exactly the same way, independently.
         """
         things = np.append(X, y, axis=1)
-        np.random.shuffle(things)
+        thing = np.random.shuffle(things)
         np.X = things[:,:-1]
         np.y = things[:,-1:]
+
 
     """
         runs through one epoch and updates the weights accordingly

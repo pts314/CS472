@@ -1,6 +1,8 @@
 from perceptron import PerceptronClassifier
 from arff import Arff
 import numpy as np
+
+
 mat = Arff("../data/perceptron/debug/linsep2nonorigin.arff",label_count=1)
 data = mat.data[:,0:-1]
 labels = mat.data[:,-1].reshape(-1,1)
