@@ -12,7 +12,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 class MLPClassifier(BaseEstimator,ClassifierMixin):
 
 
-    def __init__(self, hidden_layer_widths, lr=.1, momentum=0, shuffle=True):
+    def __init__(self, hidden_layer_widths, lr=.1, momentum=0, shuffle=True,deterministic=None):
         """ Initialize class with chosen hyperparameters.
 
         Args:
@@ -24,7 +24,7 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
             mlp = MLPClassifier([3,3]),  <--- this will create a model with two hidden layers, both 3 nodes wide
         """
         self.hid_layer_widths = np.array(hidden_layer_widths)
-        self.n_hid_layers = hidden_layer_width.shape[0]
+        self.n_hid_layers = len(hidden_layer_widths)
         self.n_layers = self.n_hid_layers+1
         self.lr = lr
         self.momentum = momentum
@@ -55,7 +55,7 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         best_weights = self.get_weights()
         max_flat_iter = 10
         while dont_stop:
-            changed = self._train_one_epoch()
+            changed = self._train_one_epoch(X,y)
             scores.append(self.score(X,y))
             if scores[iter_number] > scores[best_iter]:
                 best_iter = iter_number
@@ -95,8 +95,19 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
         Returns:
 
         """
-
-        return [0]
+        #self.hid_layer_widths = np.array(hidden_layer_widths)
+        #self.n_hid_layers = len(hidden_layer_widths)
+        #self.n_layers = self.n_hid_layers+1
+        #self.n_inputs = X.shape[1]
+        #self.n_outputs = y.shape[1]
+        weights = []
+        print(self.n_inputs)
+        print(self.hid_layer_widths)
+        print(self.n_outputs)
+        layers = np.append(np.append(self.n_inputs, self.hid_layer_widths), [self.n_outputs])
+        for i in range(self.n_layers):
+            weights.append(np.ones([layers[i]+1, layers[i+1]]))
+        return weights
 
     def score(self, X, y):
         """ Return accuracy of model on a given dataset. Must implement own score function.
@@ -125,11 +136,11 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
 # back propegation:
 # C*O*delta
 # delta = sum of (delta_k * weight_j_k) * net(j)_prime
-    def _train_one_epoch(self):
+    def _train_one_epoch(self, X, y):
         changed=0
-        for row, true_val in zip(self.X, self.y):
+        for row, true_val in zip(X, y):
 #TODO make this mlp not perceptron
-            predict = self._predict_one_row(row)
+            predict = self._predict_one(row)
             if (predict!=true_val):
                 changed=1
                 delta=true_val-predict
@@ -140,13 +151,17 @@ class MLPClassifier(BaseEstimator,ClassifierMixin):
 
     def _predict_one(self, inputs):
         # self.weights
-        int nets = [None]*self.n_layers
-        int intermediates = [None]*self.n_layers #np.array([nLayers+1]) 
-        intermediates[0] = inputs
+        nets = [None]*self.n_layers
+        intermediates = [None]*self.n_layers #np.array([nLayers+1]) 
+        intermediates[0] = np.array(inputs)
+        print(f"inputs are {inputs}")
         # if one layer:
         for i in range(self.n_layers):
-            np.append(intermediates[i],1) # add bias
-            nets[i] = np.matmul(intermediates[i],weights[i])
+            intermediates[i] = np.append(intermediates[i],1) # add bias
+            print(i)
+            print(intermediates[i])
+            print(self.weights[i])
+            nets[i] = np.matmul(intermediates[i],self.weights[i])
             intermediates[i+1] = self._activation(nets[i])
         output = intermediates[-1]
         return output, intermediates, nets
